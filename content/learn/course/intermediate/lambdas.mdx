@@ -6,25 +6,195 @@ description:		"Lesson: Lambdas (I) in C++ language"
 hide_title:			true
 ---
 
-import NotFinished from "@site/i18n/en/presets/NotFinished.mdx";
-
-<NotFinished />
-
 # Lambdas
+In this lesson we will cover lambads in C++ and their use cases.
 
-// TODO:
+## Definition
+A lambda in general is an anonymous function, which means a function that is not bound to any identifier, due to it being an expression it's easier and shorter to write than defining a whole function.
+Lambda was introduced in C++11 and continues to evolve. 
 
-Basics:
-
-```cpp
-auto five = [] { return 5; };
-std::cout << five();
+## Syntax
+Lambda's syntax is quite simple and let you manage your code in a
+flexible way.
+A lambda have three main parts
+```
+[captures...] (arguments... optional if the lambda accepts no arguments) -> (the return type optional) { (body) }
 ```
 
+#### Captures
+Lambda syntax begins with a `capture` and it's a way to tell the lambda which variables it can access.
+for example, an empty capture clause tells the lambda not to capture anything and thus variables from the outside scope cannot be used
+in lambda's body, you can provide a list of identifiers in the capture close and therefore the lambda can only access those variables from the surrounding scope. 
+
 ```cpp
-auto square = [](int x) { return x*x; };
-std::cout << square(5);
+int x = 5;
+[] { use(x); }; // error: x is not defined since it's not captured
+[x] { use(x); }; // OK: use of x is allowed since it's captured
+```
+:::note
+Since lambdas don't have a specific type and each instance has its own, we rely on auto type deduction
+:::
+
+captures can be more explicit such as wether the capture should be by reference or copy by putting '&' or just the variable name respectively in front of the capture.
+```cpp name=main.cpp
+#include <iostream>
+
+int main() {
+    int x = 5;
+    auto my_epic_lambda_ref = [&x] { x += 1; };
+    my_epic_lambda_ref();
+    std::cout << x;
+}
+```
+```plaintext name=Result (console)
+6
+```
+You observed how the value of x changed? yes! because `my_epic_lambda_ref` takes a reference to the variable and thus it can modify it.
+:::danger Modifying a variable
+You cannot modify a variable that is default-captured by a lambda ([ident] ...) since lambdas captures are const by default unless you capture by reference
+:::
+
+
+You can also implicitly capture what the lambda uses by adding `&` to capture by reference or `=` to capture by copy and these are called capture-default, they can only appear in the very beginning of a capture list.
+
+:::danger
+`=` can't appear in front of an identifier
+:::
+
+```cpp
+#include <iostream>
+
+int main() {
+    int x = 1;
+    int y = 2;
+    int z = 3;
+    auto epic_lambda = [=] { std::cout << x << ' ' << y << ' ' << z; };
+    auto epic_lambda_2 = [&] { std::cout << x << ' ' << y << ' ' << z; };
+    epic_lambda();
+    std::cout << '\n';
+    epic_lambda_2();
+}
+```
+```plaintext name=Result (console)
+1 2 3
+1 2 3
+```
+:::important
+Notice how we can use `std::cout` in lambda's body even tho we didn't capture it?
+The reason is that lambda captures global variables by default same thing goes for functions
+:::
+
+You can combine different types of capture, for instance capturing everything by copy but capturing a variable by reference or the opposite!, however
+identifiers can't appear more than once in lambda's capture and you can't capture a variable by copy after you captured everything by copy same thing for capturing by reference
+```cpp
+int x = 1;
+[=, &x] { ... }; // captures everything by copy, captures x by reference
+[&, x] { ... }; // captures everything by reference, captures x by copy
+[&, &x] { ... }; // error x is already captured by reference
+[=, x] { ... }; // error x is already captured by copy
+[x, x] { ... }; // error x can't appear more than once
+```
+Some compilers may only produce warnings for the cases above.
+
+
+
+#### Arguments
+Lambda can take arguments too.
+```cpp file=main.cpp
+#include <iostream>
+int main() {
+    auto add = [](int x,int y) { return x + y; };
+    int result = add(1, 3);
+    std::cout << result;
+}
+```
+```plaintext name=Result (console)
+3
 ```
 
-// etc.
+:::important
+since C++14 a lambda can be generic by change its arguments type to `auto`
 
+```cpp file=main.cpp
+#include <iostream>
+
+int main() {
+    auto add = [](auto x,auto y) { return x + y; };
+    int result = add(1, 3);
+    std::cout << result;
+}
+```
+```plaintext name=Result (console)
+3
+```
+:::
+
+#### Return type
+You can also speicify lambda's return type as `-> type` and that's the 'trailing return type', however it's not a common thing since the compiler can deduce it most of the time.
+```cpp name=main.cpp
+#include <iostream>
+
+int main() {
+    auto add = [](int x,int y) -> int { return x + y; };
+    int result = add(1, 2);
+    std::cout << result;
+}
+```
+```plaintext name=Result (console)
+3
+```
+
+## Use cases
+Now after covering the important parts of lambdas and their syntax, you may ask ok, but when I'll use them?
+Well lambdas can be used for:
+
+#### High order functions
+High order functions are functions that take other functions as arguments.
+The algorithm header is the best example for such use case.
+
+```cpp
+#include <iostream>
+#include <algorithm>
+#include <vector>
+
+int main() {
+    std::vector<int> vec = {1,2,3,4,5};
+    std::transform(vec.begin(), vec.end(), [](int a) { return a*2; });
+}
+```
+
+#### Callbacks
+Lambda can also be used as a callback in different contexts.
+
+Thread function
+```cpp
+#include <iostream>
+#include <thread>
+
+int main() {
+    std::thread th([]{
+        std::cout << "Hello there";
+    });
+    th.join();
+}
+```
+
+Web app
+```cpp
+#include <web_framework>
+
+int main() {
+    WebFramework app;
+    app.add_route("/", [](Response& res, Request& req) {
+        req.send("hello, world!");
+    });
+}
+```
+
+#### Reducing the number of definitions
+When a function is used only once or for a limited number of times, it is suggested to use lambdas instead.
+The examples above are simple, but think of a large code base, without lambdas we'd create tons of global functions and we have to remember their names!
+
+
+### What's more?
+C++ lambdas have more than just we covered in this lesson and it required to have an understanding of some idioms to get to the rest, but since this is the first lesson you will take as an intermediate it's kept simple and we shall discuss it in later courses.
